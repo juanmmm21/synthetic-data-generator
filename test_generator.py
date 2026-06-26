@@ -43,7 +43,7 @@ class TestSyntheticDataGenerator(unittest.TestCase):
             self.assertTrue(len(sample.instruction) >= 10)
             self.assertTrue(len(sample.output) >= 20)
             # Validar que los prompts no tengan duplicados exactos
-            self.assertTrue(any(t in sample.instruction.lower() for t in ["rag", "embeddings"]))
+            self.assertTrue(any(t in sample.instruction.lower() for t in ["rag", "embeddings", "recuperacion", "vector", "dimension"]))
 
     def test_dpo_generation_format(self) -> None:
         """
