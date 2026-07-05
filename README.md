@@ -1,38 +1,38 @@
 # Synthetic Data Generator
 
-Motor automatizado para la generacion, mutacion semantica y filtrado de conjuntos de datos sinteticos (datasets) de alta fidelidad. Este modulo facilita la creacion estructurada de datos para entrenamiento en dos formatos criticos de alineacion de modelos de lenguaje: Ajuste Fino de Instrucciones (Instruction Tuning) y Optimizacion de Preferencias Directas (DPO - Direct Preference Optimization).
+Automated engine for generating, semantically mutating, and filtering high-fidelity synthetic datasets. This module facilitates the structured creation of training data in two critical language model alignment formats: Instruction Tuning and Direct Preference Optimization (DPO).
 
-El modulo resuelve el problema de la escasez de datos limpios de entrenamiento dentro de la infraestructura local mediante algoritmos deterministicos de expansion linguistica y control estricto de duplicidad.
+The module solves the problem of scarce clean training data within the local infrastructure through deterministic linguistic expansion algorithms and strict duplicate control.
 
-## Metodologia de Generacion y Flujo de Trabajo
+## Generation Methodology and Workflow
 
-La ingesta y refinamiento de muestras sinteticas sigue una arquitectura multipaso disenada para maximizar la entropia (diversidad) del dataset final.
+The ingestion and refinement of synthetic samples follows a multi-step architecture designed to maximize the entropy (diversity) of the final dataset.
 
 ```mermaid
 flowchart TD
-    Topics[Topicos Semanticos Semilla: RAG, Embeddings, DB] --> Mutator[Mutador de Prompts: Self-Instruct Style]
+    Topics[Seed Semantic Topics: RAG, Embeddings, DB] --> Mutator[Prompt Mutator: Self-Instruct Style]
     
-    subgraph Mutacion Semantica
-        Mutator --> Choice{Seleccion Aleatoria}
-        Choice -->|Verbo de Accion| Verbs[escribe, desarrolla, optimiza...]
-        Choice -->|Sinonimo Tecnico| Syns[pipeline RAG, HNSW, similitud...]
-        Choice -->|Modificador| Mods[con tipado estricto, paso a paso...]
-        Verbs & Syns & Mods --> Concat[Estructuras de Oraciones]
+    subgraph Semantic Mutation
+        Mutator --> Choice{Random Selection}
+        Choice -->|Action Verb| Verbs[write, develop, optimize...]
+        Choice -->|Technical Synonym| Syns[RAG pipeline, HNSW, similarity...]
+        Choice -->|Modifier| Mods[with strict typing, step by step...]
+        Verbs & Syns & Mods --> Concat[Sentence Structures]
     end
     
-    Concat --> CandidatePrompt[Prompt Candidato]
-    CandidatePrompt --> DedupFilter[Filtro de Diversidad Jaccard]
+    Concat --> CandidatePrompt[Candidate Prompt]
+    CandidatePrompt --> DedupFilter[Jaccard Diversity Filter]
     
-    subgraph Desduplicacion por N-Gramas
-        DedupFilter --> TriGram[Extraer Tri-gramas de Caracteres]
-        TriGram --> Overlap{¿Jaccard Overlap > Threshold?}
-        Overlap -->|Si - Redundante| Reject[Descartar Prompt]
-        Overlap -->|No - Unico| Accept[Aceptar Prompt]
+    subgraph N-Gram Deduplication
+        DedupFilter --> TriGram[Extract Character Tri-grams]
+        TriGram --> Overlap{Jaccard Overlap > Threshold?}
+        Overlap -->|Yes - Redundant| Reject[Discard Prompt]
+        Overlap -->|No - Unique| Accept[Accept Prompt]
     end
     
-    Accept --> OutputGen[Generador de Respuestas Sinteticas]
+    Accept --> OutputGen[Synthetic Response Generator]
     
-    subgraph Creacion de Muestras
+    subgraph Sample Creation
         OutputGen --> SFT[Instruction Tuning Sample: Instruction + Chosen]
         OutputGen --> DPO[DPO Sample: Prompt + Chosen + Rejected]
     end
@@ -41,48 +41,48 @@ flowchart TD
     DPO --> DPOFile[synthetic_dpo_dataset.json]
 ```
 
-### 1. Mutacion Semantica de Entrada (Metodologia Self-Instruct)
+### 1. Semantic Input Mutation (Self-Instruct Methodology)
 
-Para evitar la creacion de datasets con directivas homogeneas que induzcan sesgos de sobreajuste (overfitting) en el LLM, el modulo `SyntheticDataGenerator` implementa un motor de mutacion linguistica:
-*   **Expansion de Vocabulario:** Para cada topico semilla (RAG, embeddings, bases de datos), se definen sinonimos tecnicos equivalentes, verbos de accion y modificadores de formato o estilo.
-*   **Combinatoria Estructural:** El mutador combina de forma pseudo-aleatoria estas piezas gramaticales inyectandolas en plantillas de directivas (preguntas, requerimientos de codigo, peticiones de tutoriales), obteniendo una coleccion diversificada de prompts unicos a partir de un numero reducido de topicos basicos.
+To avoid creating datasets with homogeneous directives that induce overfitting bias in the LLM, the `SyntheticDataGenerator` module implements a linguistic mutation engine:
+*   **Vocabulary Expansion:** For each seed topic (RAG, embeddings, databases), equivalent technical synonyms, action verbs, and format or style modifiers are defined.
+*   **Structural Combinatorics:** The mutator pseudo-randomly combines these grammatical pieces, injecting them into directive templates (questions, code requirements, tutorial requests), producing a diversified collection of unique prompts from a small number of basic topics.
 
-### 2. Filtro de Diversidad por Similitud de N-Gramas
+### 2. N-Gram Similarity Diversity Filter
 
-Cada prompt generado pasa por un filtro de desduplicacion heurística antes de ser incorporado al dataset final:
+Each generated prompt passes through a heuristic deduplication filter before being added to the final dataset:
 
-1.  **Decomposicion en Tri-gramas:** El prompt candidato $P_{\text{cand}}$ y cada uno de los prompts aceptados anteriormente $P_{\text{exist}}$ son transformados a minusculas, desprovistos de espacios, y segmentados en secuencias de 3 caracteres (tri-gramas). Sea $G(T)$ el conjunto de tri-gramas del texto $T$.
-2.  **Coeficiente de Jaccard:** Se calcula el grado de solapamiento lexico:
+1.  **Tri-gram Decomposition:** The candidate prompt $P_{\text{cand}}$ and each of the previously accepted prompts $P_{\text{exist}}$ are lowercased, stripped of spaces, and segmented into 3-character sequences (tri-grams). Let $G(T)$ be the set of tri-grams of text $T$.
+2.  **Jaccard Coefficient:** The degree of lexical overlap is computed:
     $$J(P_{\text{cand}}, P_{\text{exist}}) = \frac{|G(P_{\text{cand}}) \cap G(P_{\text{exist}})|}{|G(P_{\text{cand}}) \cup G(P_{\text{exist}})|}$$
-3.  **Corte por Umbral:** Si $J > \theta$ (donde $\theta$ es el `dedup_threshold`, por defecto `0.50`), se considera que la instruccion es semanticamente redundante y se descarta de inmediato para forzar la diversidad tematica del corpus.
+3.  **Threshold Cutoff:** If $J > \theta$ (where $\theta$ is the `dedup_threshold`, defaults to `0.50`), the instruction is considered semantically redundant and immediately discarded to force thematic diversity in the corpus.
 
-### 3. Generacion de Pares de Preferencia DPO
+### 3. DPO Preference Pair Generation
 
-Para dar soporte al entrenamiento DPO (Direct Preference Optimization), el generador asocia a cada prompt aceptado un par de respuestas contrastadas:
+To support DPO (Direct Preference Optimization) training, the generator associates each accepted prompt with a pair of contrasted responses:
 
-*   **Respuesta Elegida (Chosen):** Representa el comportamiento optimo. Es una respuesta con alto rigor tecnico, tipado correcto de datos, libre de placeholders y con explicaciones teoricas detalladas.
-*   **Respuesta Rechazada (Rejected):** Simula comportamientos anomalos o alucinados (errores de logica en el codigo, explicaciones conceptuales erroneas, dependencias inexistentes o comentarios vacios).
+*   **Chosen Response:** Represents optimal behavior. It is a response with high technical rigor, correct data typing, free of placeholders, and with detailed theoretical explanations.
+*   **Rejected Response:** Simulates anomalous or hallucinated behavior (logic errors in the code, incorrect conceptual explanations, non-existent dependencies, or empty comments).
 
-Al entrenar un LLM con este par de ejemplos, el algoritmo de perdida de DPO maximiza la probabilidad del comportamiento preferido y minimiza la del rechazado, logrando una alineacion de seguridad mas estable que las tecnicas tradicionales de RLHF.
+By training an LLM with this pair of examples, the DPO loss algorithm maximizes the probability of the preferred behavior and minimizes that of the rejected one, achieving a more stable safety alignment than traditional RLHF techniques.
 
-## Conexión con el Ecosistema
+## Connection to the Ecosystem
 
-Este modulo actua como proveedor de datos sinteticos para el entrenamiento y evaluacion:
-1.  **llm-qlora-finetuner:** Consume directamente los archivos JSON generados por este modulo (`synthetic_instruction_dataset.json` y `synthetic_dpo_dataset.json`) para realizar el entrenamiento local parametrico (LoRA) de modelos causales.
-2.  **llm-eval-harness:** Utiliza las instrucciones y los pares de respuestas de alta calidad para establecer bases de referencia (benchmarks) y medir desviaciones de precision en el LLM despues del ajuste fino.
-3.  **dataset-version-control:** Gestiona el control de cambios de los ficheros JSON generados, registrando diferencias semanticas y controlando las versiones de los datasets para asegurar la trazabilidad del entrenamiento.
+This module acts as a synthetic data provider for training and evaluation:
+1.  **llm-qlora-finetuner:** Directly consumes the JSON files generated by this module (`synthetic_instruction_dataset.json` and `synthetic_dpo_dataset.json`) to perform local parametric (LoRA) training of causal models.
+2.  **llm-eval-harness:** Uses the high-quality instructions and response pairs to establish benchmarks and measure accuracy deviations in the LLM after fine-tuning.
+3.  **dataset-version-control:** Manages change control of the generated JSON files, recording semantic differences and versioning the datasets to ensure training traceability.
 
-## Estructura del Proyecto
+## Project Structure
 
-*   `generator.py`: Define los modelos Pydantic `InstructionSample` y `DPOSample`, y la clase principal `SyntheticDataGenerator` con el mutador y los filtros de Jaccard.
-*   `test_generator.py`: Suite de test unitarios que verifican el calculo del overlap Jaccard, la deduplicacion automatica y los formatos de datos Instruction y DPO generados.
-*   `example.py`: Demostracion interactiva de ejecucion que genera 12 muestras de ajuste fino e interacciones DPO, guardando los resultados en disco en formato JSON.
+*   `generator.py`: Defines the `InstructionSample` and `DPOSample` Pydantic models, and the main `SyntheticDataGenerator` class with the mutator and Jaccard filters.
+*   `test_generator.py`: Unit test suite that verifies the Jaccard overlap calculation, automatic deduplication, and the generated Instruction and DPO data formats.
+*   `example.py`: Interactive demo run that generates 12 fine-tuning samples and DPO interactions, saving the results to disk in JSON format.
 
-## Instalacion y Ejecucion
+## Installation and Usage
 
-### 1. Activar el Entorno Local e Instalar Dependencias
+### 1. Activate the Local Environment and Install Dependencies
 
-Asegurese de habilitar el entorno virtual antes de realizar la instalacion:
+Make sure to enable the virtual environment before installing:
 
 ```bash
 python3 -m venv .venv
@@ -90,18 +90,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Ejecutar Pruebas de Calidad
+### 2. Run Quality Tests
 
 ```bash
 .venv/bin/python -m unittest test_generator.py
 ```
 
-### 3. Generar Datasets Sinteticos
+### 3. Generate Synthetic Datasets
 
-Para ejecutar el generador y exportar los ficheros JSON en el subproyecto:
+To run the generator and export the JSON files in the subproject:
 
 ```bash
 .venv/bin/python example.py
 ```
 
-El script compilara el dataset y generara los archivos de salida `synthetic_instruction_dataset.json` y `synthetic_dpo_dataset.json` listos para ser consumidos por el pipeline de entrenamiento.
+The script will compile the dataset and generate the output files `synthetic_instruction_dataset.json` and `synthetic_dpo_dataset.json`, ready to be consumed by the training pipeline.
