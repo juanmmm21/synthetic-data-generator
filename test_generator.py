@@ -1,5 +1,5 @@
 import unittest
-from generator import SyntheticDataGenerator, InstructionSample, DPOSample
+from synthetic_data_generator.generator import SyntheticDataGenerator, InstructionSample, DPOSample
 
 
 class TestSyntheticDataGenerator(unittest.TestCase):
