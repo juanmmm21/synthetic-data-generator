@@ -78,6 +78,15 @@ This module acts as a synthetic data provider for training and evaluation:
 *   `test_generator.py`: Unit test suite that verifies the Jaccard overlap calculation, automatic deduplication, and the generated Instruction and DPO data formats.
 *   `example.py`: Interactive demo run that generates 12 fine-tuning samples and DPO interactions, saving the results to disk in JSON format.
 
+## Labelled datasets for classifiers
+
+Since `0.1.0`, `generate_labeled(spec, n_per_label)` builds labelled examples (for intent routers,
+moderation, any classifier) from a grammar of templates with `{slots}`, each optionally tied to a
+context (`"context": ["active_project"]`). It adds chat-style noise (lower case, dropped accents
+and punctuation, a filler word, a typo), removes near-duplicates and records each sample's
+template, so `split(samples, by_template=True)` can hold out *whole templates* for evaluation and
+measure generalization rather than memorization. See `labeled.py` for the spec format.
+
 ## Using it as a package
 
 Since `0.1.0` the code lives in the `synthetic_data_generator` package and the repository is
