@@ -22,7 +22,7 @@ def run_demo() -> None:
     with open("synthetic_instruction_dataset.json", "w", encoding="utf-8") as f:
         json.dump(instruction_list, f, indent=2, ensure_ascii=False)
         
-    print(f"  -> Dataset guardado exitosamente: 'synthetic_instruction_dataset.json'")
+    print("  -> Dataset guardado exitosamente: 'synthetic_instruction_dataset.json'")
     print(f"  -> Total muestras generadas: {len(instruction_list)}")
     
     # Mostrar una muestra
@@ -39,7 +39,7 @@ def run_demo() -> None:
     with open("synthetic_dpo_dataset.json", "w", encoding="utf-8") as f:
         json.dump(dpo_list, f, indent=2, ensure_ascii=False)
         
-    print(f"  -> Dataset DPO guardado exitosamente: 'synthetic_dpo_dataset.json'")
+    print("  -> Dataset DPO guardado exitosamente: 'synthetic_dpo_dataset.json'")
     print(f"  -> Total muestras generadas: {len(dpo_list)}")
     
     # Mostrar una muestra
